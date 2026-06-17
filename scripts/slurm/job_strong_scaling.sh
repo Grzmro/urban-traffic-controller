@@ -12,6 +12,7 @@
 set -euo pipefail
 
 module load miniconda3/24.5.0-0
+module load openmpi/4.1.6-gcc-13.2.0    # provides libmpi.so + PMIx for srun-launched ranks
 eval "$(conda shell.bash hook)"
 conda activate traffic
 
