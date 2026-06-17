@@ -1,0 +1,18 @@
+# Core
+pyyaml>=6.0
+numpy>=1.26
+
+# Optimization
+deap>=1.4
+
+# Dashboard / visualization
+dash>=3.0
+plotly>=6.0
+pandas>=2.0
+
+# HPC section (optional locally, required on the cluster)
+# mpi4py>=3.1
+
+# NOTE: SUMO must be installed separately and SUMO_HOME set so that the
+# bundled `traci`/`sumolib` Python packages (in %SUMO_HOME%/tools) are importable.
+# Optionally `pip install libsumo` matching the SUMO version for faster in-process runs.

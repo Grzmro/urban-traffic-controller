@@ -1,0 +1,158 @@
+/* Urban Traffic Controller — dashboard theme */
+:root {
+  --bg1: #0f172a;
+  --bg2: #1e293b;
+  --card: #ffffff;
+  --ink: #1f2937;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --green: #16a34a;
+  --green-d: #15803d;
+  --blue: #2563eb;
+  --blue-d: #1d4ed8;
+  --amber: #f59e0b;
+  --red: #dc2626;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--ink);
+  background: linear-gradient(135deg, var(--bg1), var(--bg2));
+  min-height: 100vh;
+}
+
+.app-shell { max-width: 1240px; margin: 0 auto; padding: 28px 24px 48px; }
+
+/* Header */
+.app-header { color: #fff; margin-bottom: 22px; }
+.app-header h1 {
+  font-size: 26px; font-weight: 700; margin: 0; letter-spacing: -0.02em;
+  display: flex; align-items: center; gap: 12px;
+}
+.app-header p { margin: 6px 0 0; color: #cbd5e1; font-size: 14px; }
+
+.layout { display: flex; gap: 22px; align-items: flex-start; }
+
+/* Cards */
+.card {
+  background: var(--card); border-radius: 16px; padding: 22px;
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.25);
+}
+.controls { width: 330px; flex-shrink: 0; }
+.results { flex-grow: 1; display: flex; flex-direction: column; gap: 18px; }
+
+.section-title {
+  font-size: 13px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--muted); margin: 0 0 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title .num {
+  background: var(--blue); color: #fff; width: 20px; height: 20px;
+  border-radius: 50%; display: inline-flex; align-items: center;
+  justify-content: center; font-size: 12px;
+}
+.section-title.opt .num { background: var(--green); }
+.divider { height: 1px; background: var(--line); margin: 22px 0; }
+
+/* Slider blocks */
+.field { margin-bottom: 26px; }
+.field-label {
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  display: flex; justify-content: space-between; margin-bottom: 2px;
+}
+.field-label .hint { color: var(--muted); font-weight: 400; }
+
+/* Dash 4.x slider theming (dash-slider-* classes) */
+.dash-slider-track { background: var(--line) !important; height: 6px; border-radius: 3px; }
+.dash-slider-range { background: var(--blue) !important; height: 6px; border-radius: 3px; }
+.opt-slider .dash-slider-range { background: var(--green) !important; }
+.dash-slider-thumb {
+  background: #fff; border: 2px solid var(--blue);
+  width: 18px; height: 18px; border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.opt-slider .dash-slider-thumb { border-color: var(--green); }
+.dash-slider-thumb:hover, .dash-slider-thumb:focus {
+  box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.15);
+}
+.opt-slider .dash-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(22,163,74,0.15); }
+.dash-slider-mark { color: var(--muted); font-size: 11px; }
+/* hide the slider's built-in numeric input box (value already shown in the tooltip) */
+.dash-range-slider-input { display: none !important; }
+.dash-slider-tooltip {
+  background: var(--ink); color: #fff; border-radius: 6px;
+  font-weight: 600; font-size: 12px; box-shadow: none;
+}
+
+/* Buttons */
+.btn {
+  width: 100%; border: 0; border-radius: 10px; padding: 12px 16px;
+  font-size: 14px; font-weight: 600; color: #fff; cursor: pointer;
+  transition: transform .05s ease, background .15s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-build { background: var(--blue); }
+.btn-build:hover { background: var(--blue-d); }
+.btn-opt { background: var(--green); }
+.btn-opt:hover { background: var(--green-d); }
+.btn-cyf { background: #7c3aed; }
+.btn-cyf:hover { background: #6d28d9; }
+.btn-anim { background: #0ea5e9; margin-top: 10px; }
+.btn-anim:hover { background: #0284c7; }
+.btn-heat { background: #f97316; margin-top: 10px; }
+.btn-heat:hover { background: #ea580c; }
+
+.section-title.viz .num { background: #0ea5e9; }
+.section-title.cyf .num { background: #7c3aed; }
+
+/* Result tabs + panels */
+.results { gap: 0; }
+.tab-container { flex-direction: row !important; flex-wrap: wrap !important;
+  border: none !important; margin-bottom: 14px; }
+.tab-container .tab { flex: 0 0 auto !important; width: auto !important;
+  border: none !important; cursor: pointer; }
+.panels { margin-top: 4px; }
+.panel > .card + .card { margin-top: 16px; }
+
+.text-input {
+  width: 100%; padding: 9px 12px; border: 1px solid var(--line);
+  border-radius: 8px; font-size: 14px; font-family: inherit;
+}
+.text-input:focus { outline: none; border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15); }
+
+.upload {
+  margin-top: 12px; padding: 14px; border: 2px dashed #c4b5fd;
+  border-radius: 10px; text-align: center; color: #6d28d9; font-size: 13px;
+  font-weight: 600; cursor: pointer; background: #faf5ff;
+}
+.upload:hover { background: #f3e8ff; border-color: #a78bfa; }
+
+.status { margin-top: 14px; font-size: 13px; color: var(--muted); min-height: 18px; }
+
+/* Topology pills */
+.topo-row { display: flex; gap: 8px; margin-bottom: 22px; }
+
+/* Results */
+.graph-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.summary-card { font-size: 14px; line-height: 1.6; }
+.summary-card .big { font-size: 19px; font-weight: 700; color: var(--green); }
+.metric-row { display: flex; gap: 18px; margin-top: 10px; }
+.metric {
+  flex: 1; background: #f8fafc; border: 1px solid var(--line);
+  border-radius: 12px; padding: 14px;
+}
+.metric .label { font-size: 12px; color: var(--muted); }
+.metric .value { font-size: 22px; font-weight: 700; margin-top: 2px; }
+.metric.base .value { color: var(--red); }
+.metric.opt .value { color: var(--green); }
+.metric.win .value { color: var(--blue); }
+
+@media (max-width: 700px) {
+  .layout { flex-direction: column; }
+  .controls { width: 100%; }
+  .graph-grid { grid-template-columns: 1fr; }
+}
