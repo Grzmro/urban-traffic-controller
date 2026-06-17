@@ -7,6 +7,8 @@ agnostic to which one is active.
 """
 from __future__ import annotations
 
+import shutil
+
 import sumolib  # type: ignore
 
 try:  # pragma: no cover - depends on local install
@@ -21,7 +23,8 @@ conn = _conn
 
 
 def sumo_binary(gui: bool = False) -> str:
-    return sumolib.checkBinary("sumo-gui" if gui else "sumo")
+    name = "sumo-gui" if gui else "sumo"
+    return shutil.which(name) or sumolib.checkBinary(name)
 
 
 def base_command(net: str, routes: str, *, step_length: float = 1.0,

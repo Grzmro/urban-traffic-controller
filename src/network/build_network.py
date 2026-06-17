@@ -10,6 +10,7 @@ Both are shipped with SUMO; we locate them via ``SUMO_HOME``.
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 import uuid
@@ -27,7 +28,7 @@ def _sumo_home() -> Path:
 
 def _netgenerate_args(net_cfg: dict, out_net: Path) -> list[str]:
     """Build the netgenerate command for the requested topology."""
-    binary = sumolib.checkBinary("netgenerate")
+    binary = shutil.which("netgenerate") or sumolib.checkBinary("netgenerate")
     args = [binary]
 
     topo = net_cfg.get("type", "grid")
