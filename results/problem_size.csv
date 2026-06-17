@@ -1,0 +1,8 @@
+workers,grid_number,intersections,genome_len,evals,wall_s,evals_per_s,ms_per_eval,backend
+23,3,9,18,96,2.591,37.048,27.0,libsumo
+23,5,25,50,96,2.669,35.969,27.8,libsumo
+23,8,64,128,96,4.49,21.383,46.8,libsumo
+23,12,144,288,96,7.491,12.815,78.0,libsumo
+23,16,256,512,96,10.64,9.022,110.8,libsumo
+23,24,576,1152,96,15.764,6.09,164.2,libsumo
+23,32,1024,2048,96,20.295,4.73,211.4,libsumo
