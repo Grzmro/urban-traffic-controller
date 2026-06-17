@@ -1,0 +1,6 @@
+algorithm,best,baseline,improvement_pct,evals,wall_s
+baseline,39473,39473,0.0,1,0.00
+ga,28689,39473,27.3,1991,91.35
+random,36010,39473,8.8,1991,92.41
+hillclimb,31693,39473,19.7,1978,90.17
+anneal,36405,39473,7.8,1978,92.72
