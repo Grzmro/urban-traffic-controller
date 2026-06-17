@@ -15,10 +15,13 @@ module load miniconda3/24.5.0-0
 eval "$(conda shell.bash hook)"
 conda activate traffic
 
-export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}
-export PATH=$HOME/sumo-local/bin:$PATH
-export SUMO_HOME=$CONDA_PREFIX/lib/python3.11/site-packages/sumo
+# Use the locally compiled SUMO (source tree): binaries in bin/, python
+# bindings (libsumo, traci, sumolib, randomTrips) in tools/. libsumocpp.so
+# and xerces-c must be on LD_LIBRARY_PATH for libsumo to import.
+export SUMO_HOME=$HOME/sumo-1_20_0
+export PATH=$SUMO_HOME/bin:$PATH
 export PYTHONPATH=$SUMO_HOME/tools:${PYTHONPATH:-}
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$SUMO_HOME/bin:${LD_LIBRARY_PATH:-}
 
 mkdir -p results
 
