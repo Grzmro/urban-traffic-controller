@@ -90,6 +90,9 @@ def build_network(cfg: dict, out_dir: str | os.PathLike) -> dict:
         "-p", str(demand.get("period", 1.6)),
         "--fringe-factor", str(demand.get("fringe_factor", 5)),
         "--seed", str(demand.get("seed", 42)),
+        # Our SUMO is built without FOX, so duarouter cannot route in parallel.
+        # --threads 1 stops randomTrips from passing --routing-threads to duarouter.
+        "--threads", "1",
     ]
     subprocess.run(trips_args, check=True, capture_output=True, text=True)
 
