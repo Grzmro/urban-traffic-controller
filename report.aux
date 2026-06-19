@@ -1,0 +1,59 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Problem statement}{2}{section.1}\protected@file@percent }
+\newlabel{eq:delay}{{1}{2}{Problem statement}{equation.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Tools and methods}{2}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}System architecture}{3}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Problem formulation}{3}{section.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Genome.}{3}{section*.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Fitness.}{3}{section*.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}The optimisation algorithm}{3}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Why a genetic algorithm}{3}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Operators}{3}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Pseudocode}{4}{subsection.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Algorithm comparison: why the GA earns its place}{4}{section.6}\protected@file@percent }
+\newlabel{sec:compare}{{6}{4}{Algorithm comparison: why the GA earns its place}{section.6}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Final result of each algorithm on an equal evaluation budget ($8\times 8$ city, baseline $D=\SI {39473}{\veh \second }$). Lower delay is better.}}{4}{table.caption.4}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{tab:compare}{{1}{4}{Final result of each algorithm on an equal evaluation budget ($8\times 8$ city, baseline $D=\SI {39473}{\veh \second }$). Lower delay is better}{table.caption.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Algorithm comparison on equal budget. \emph  {Left:} convergence --- best total delay against the number of SUMO evaluations; the GA descends below every competitor. \emph  {Right:} final improvement over the fixed-time baseline. The GA reaches \SI {-27.3}{\percent }, hill climbing \SI {-19.7}{\percent }, while random search and simulated annealing stall near \SI {-8}{\percent }.}}{5}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:compare}{{1}{5}{Algorithm comparison on equal budget. \emph {Left:} convergence --- best total delay against the number of SUMO evaluations; the GA descends below every competitor. \emph {Right:} final improvement over the fixed-time baseline. The GA reaches \SI {-27.3}{\percent }, hill climbing \SI {-19.7}{\percent }, while random search and simulated annealing stall near \SI {-8}{\percent }}{figure.caption.5}{}}
+\@writefile{toc}{\contentsline {paragraph}{Reading the result.}{5}{section*.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7}Parallelisation}{5}{section.7}\protected@file@percent }
+\newlabel{eq:amdahl}{{2}{5}{Parallelisation}{equation.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Experimental setup}{5}{section.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{How a study is run.}{6}{section*.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{How the variables were swept.}{6}{section*.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9}Results}{6}{section.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.1}Optimisation quality}{6}{subsection.9.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.2}Strong scaling}{6}{subsection.9.2}\protected@file@percent }
+\newlabel{sec:strong}{{9.2}{6}{Strong scaling}{subsection.9.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Strong scaling on the $8\times 8$ city (fixed problem, growing workers).}}{7}{table.caption.9}\protected@file@percent }
+\newlabel{tab:strong}{{2}{7}{Strong scaling on the $8\times 8$ city (fixed problem, growing workers)}{table.caption.9}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Strong scaling: speedup and parallel efficiency versus worker count. Speedup stays near-linear up to $\sim $15 workers and reaches $26.96\times $ on 47 workers; efficiency declines as the fixed serial fraction of Eq.~\eqref  {eq:amdahl} grows in relative weight.}}{7}{figure.caption.10}\protected@file@percent }
+\newlabel{fig:strong}{{2}{7}{Strong scaling: speedup and parallel efficiency versus worker count. Speedup stays near-linear up to $\sim $15 workers and reaches $26.96\times $ on 47 workers; efficiency declines as the fixed serial fraction of Eq.~\eqref {eq:amdahl} grows in relative weight}{figure.caption.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.3}Throughput}{7}{subsection.9.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Throughput on the $8\times 8$ city (\texttt  {libsumo} backend).}}{7}{table.caption.11}\protected@file@percent }
+\newlabel{tab:throughput}{{3}{7}{Throughput on the $8\times 8$ city (\texttt {libsumo} backend)}{table.caption.11}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Throughput: sustained SUMO evaluations per second against worker count. The rate rises from \SI {1.4}{evaluations\per \second } on a single worker to \SI {45.8}{evaluations\per \second } on 47 workers --- a $31\times $ increase in raw evaluation capacity.}}{8}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:throughput}{{3}{8}{Throughput: sustained SUMO evaluations per second against worker count. The rate rises from \SI {1.4}{evaluations\per \second } on a single worker to \SI {45.8}{evaluations\per \second } on 47 workers --- a $31\times $ increase in raw evaluation capacity}{figure.caption.12}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.4}Problem size}{8}{subsection.9.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Cost per evaluation versus city size (23 workers, \texttt  {libsumo}).}}{8}{table.caption.13}\protected@file@percent }
+\newlabel{tab:size}{{4}{8}{Cost per evaluation versus city size (23 workers, \texttt {libsumo})}{table.caption.13}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Problem size: evaluation rate and per-evaluation cost as the city grows from 9 to 1024 intersections. The cost per evaluation rises sub-quadratically with city size, so larger cities remain tractable on the same worker pool.}}{9}{figure.caption.14}\protected@file@percent }
+\newlabel{fig:size}{{4}{9}{Problem size: evaluation rate and per-evaluation cost as the city grows from 9 to 1024 intersections. The cost per evaluation rises sub-quadratically with city size, so larger cities remain tractable on the same worker pool}{figure.caption.14}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {10}The interactive dashboard}{9}{section.10}\protected@file@percent }
+\newlabel{sec:dashboard}{{10}{9}{The interactive dashboard}{section.10}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces \textbf  {Network builder.} The left panel parametrises the city --- topology, junctions per side, lanes, edge length, demand intensity and the simulation horizon. Clicking \emph  {Build \& show network} generates the SUMO network and renders it. Here a $3\times 3$ grid with single-lane roads and a vehicle every \SI {1.6}{\second } is created.}}{10}{figure.caption.15}\protected@file@percent }
+\newlabel{fig:shot-network}{{5}{10}{\textbf {Network builder.} The left panel parametrises the city --- topology, junctions per side, lanes, edge length, demand intensity and the simulation horizon. Clicking \emph {Build \& show network} generates the SUMO network and renders it. Here a $3\times 3$ grid with single-lane roads and a vehicle every \SI {1.6}{\second } is created}{figure.caption.15}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces \textbf  {Optimisation result.} The headline cards report baseline, optimised and improvement (\SI {-22.5}{\percent }). \emph  {Left:} the GA convergence curve --- total delay drops generation by generation and plateaus, indicating the search has converged. \emph  {Right:} the same before/after delay as bars.}}{10}{figure.caption.16}\protected@file@percent }
+\newlabel{fig:shot-convergence}{{6}{10}{\textbf {Optimisation result.} The headline cards report baseline, optimised and improvement (\SI {-22.5}{\percent }). \emph {Left:} the GA convergence curve --- total delay drops generation by generation and plateaus, indicating the search has converged. \emph {Right:} the same before/after delay as bars}{figure.caption.16}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces \textbf  {Traffic animation.} The optimised plan is replayed: each dot is a vehicle, coloured by speed (green = moving, red = halting). A time slider scrubs through the simulated horizon, making queue formation and clearance visible directly.}}{11}{figure.caption.17}\protected@file@percent }
+\newlabel{fig:shot-animation}{{7}{11}{\textbf {Traffic animation.} The optimised plan is replayed: each dot is a vehicle, coloured by speed (green = moving, red = halting). A time slider scrubs through the simulated horizon, making queue formation and clearance visible directly}{figure.caption.17}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces \textbf  {Congestion heatmap.} Baseline (left) versus optimised (right), with each intersection coloured by its average number of halting vehicles (green = clear, red = queued). The optimised network shows visibly fewer hot spots --- the same \SI {-22.5}{\percent } improvement, now localised in space.}}{11}{figure.caption.18}\protected@file@percent }
+\newlabel{fig:shot-heatmap}{{8}{11}{\textbf {Congestion heatmap.} Baseline (left) versus optimised (right), with each intersection coloured by its average number of halting vehicles (green = clear, red = queued). The optimised network shows visibly fewer hot spots --- the same \SI {-22.5}{\percent } improvement, now localised in space}{figure.caption.18}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {11}Discussion}{12}{section.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {12}Conclusions}{12}{section.12}\protected@file@percent }
+\gdef \@abspage@last{12}

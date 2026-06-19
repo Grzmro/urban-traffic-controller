@@ -59,7 +59,6 @@ def benchmark_grid(cfg: dict, grid_number: int, out_dir, n_evals: int,
                            routes=paths["routes"], sim_cfg=sim_cfg)
 
     genomes = _random_genomes(spec, n_evals)
-    # One warm-up evaluation so process/JIT/SUMO startup isn't charged to the timing.
     list(map(evaluate_one, genomes[:1]))
 
     t0 = time.perf_counter()

@@ -38,9 +38,6 @@ from src.network.build_network import build_network
 from src.sim.encoding import clamp, read_tls_spec
 
 
-# --------------------------------------------------------------------------- #
-# Evaluation plumbing (shared by every algorithm)
-# --------------------------------------------------------------------------- #
 class Evaluator:
     """Counts SUMO evaluations and dispatches them through ``map_fn``."""
 
@@ -67,11 +64,8 @@ def _neighbor(rng, genome, lo, hi):
     return n
 
 
-# --------------------------------------------------------------------------- #
-# Algorithms -- each returns (best_genome, best_fit, trace[(evals, best)])
-# --------------------------------------------------------------------------- #
 def random_search(ev, rng, budget, batch, length, lo, hi, base_g, base_f):
-    best_f, best_g, trace = base_f, base_g, []   # never worse than baseline
+    best_f, best_g, trace = base_f, base_g, []
     while ev.count < budget:
         k = min(batch, budget - ev.count)
         genomes = [_random_genome(rng, length, lo, hi) for _ in range(k)]
@@ -83,7 +77,6 @@ def random_search(ev, rng, budget, batch, length, lo, hi, base_g, base_f):
 
 
 def hill_climbing(ev, rng, budget, n_chains, length, lo, hi, base_g, base_f):
-    # Seed one chain from the baseline plan, the rest random (random restarts).
     chains = [list(base_g)] + [_random_genome(rng, length, lo, hi)
                                for _ in range(n_chains - 1)]
     cur = ev.batch(chains)
@@ -95,7 +88,7 @@ def hill_climbing(ev, rng, budget, n_chains, length, lo, hi, base_g, base_f):
         props = [_neighbor(rng, c, lo, hi) for c in chains]
         pf = ev.batch(props)
         for i, f in enumerate(pf):
-            if f < cur[i]:                       # greedy accept
+            if f < cur[i]:
                 chains[i], cur[i] = props[i], f
                 if f < best_f:
                     best_f, best_g = f, props[i]
@@ -112,7 +105,7 @@ def simulated_annealing(ev, rng, budget, n_chains, length, lo, hi, base_g, base_
         best_f, best_g = min(cur), chains[cur.index(min(cur))]
     trace = [(ev.count, best_f)]
 
-    spread = (max(cur) - min(cur)) or 1.0       # set the temperature scale
+    spread = (max(cur) - min(cur)) or 1.0
     t0, t_end = spread, spread * 0.01
     rounds = max(1, (budget - ev.count) // n_chains)
     alpha = (t_end / t0) ** (1.0 / rounds)
@@ -153,7 +146,6 @@ class _GATracer:
         return results
 
 
-# --------------------------------------------------------------------------- #
 def main() -> None:
     ap = argparse.ArgumentParser(description="Compare optimisation algorithms")
     ap.add_argument("--config", required=True)
@@ -187,7 +179,6 @@ def main() -> None:
     eval_one = partial(_eval_individual, spec=spec, net=net, routes=routes,
                        sim_cfg=sim_cfg)
 
-    # Set up the parallel map (same machinery the GA scaling study uses).
     if args.parallel:
         from mpi4py import MPI
         from mpi4py.futures import MPIPoolExecutor
@@ -200,10 +191,9 @@ def main() -> None:
         workers = 1
     batch = max(2, workers)
 
-    results = {}      # name -> (best_fit, trace, wall_s)
+    results = {}
     baseline_fit = None
 
-    # ----- GA first: it also fixes the shared evaluation budget ----------- #
     print("[ga] running ...", flush=True)
     tracer = _GATracer(map_fn)
     t0 = time.perf_counter()
@@ -214,7 +204,6 @@ def main() -> None:
     print(f"[ga] best={ga_res.best_fitness:.0f} evals={tracer.count} "
           f"budget={budget}", flush=True)
 
-    # ----- the metaheuristics, all on the same budget --------------------- #
     base_g = spec.baseline_genome()
     base_f = baseline_fit
     algos = {
@@ -234,7 +223,6 @@ def main() -> None:
     if executor is not None:
         executor.shutdown()
 
-    # ----- write convergence + summary CSVs ------------------------------- #
     csv_path, sum_path = Path(args.csv), Path(args.summary)
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     with open(csv_path, "w", newline="") as fh:

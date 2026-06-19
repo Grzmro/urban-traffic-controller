@@ -1,163 +1,185 @@
 # Urban Traffic Controller
 
-Interactive dashboard for **designing intersections and optimizing their traffic-light
-timings**, plus an HPC study showing that the optimization scales on a supercomputer.
+A project for the Large Scale Computing course. The idea is simple: take an
+intersection grid, look at how long cars sit waiting at red lights, and let a
+genetic algorithm retune the green-phase durations so they wait less. Then run
+that optimization on a cluster, because evaluating signal plans means running a
+lot of traffic simulations and they're all independent.
 
-Project for the *Large Scale Computing* course.
+There's a dashboard to play with it interactively, and a set of SLURM jobs that
+measure how well the whole thing scales on Cyfronet Ares.
 
-- **Build** a road network in the dashboard (parametric SUMO grid/spider, or upload your own).
-- **Optimize** the signal timings with a genetic algorithm — fully automatic.
-- **Compare** before/after: how much shorter is the total vehicle delay vs fixed-time signals?
-- **Scale** the same optimization across many CPUs with MPI on Cyfronet Ares.
+## What it does
 
-## How it works
+You build a road network (a parametric SUMO grid or spider, or upload your own
+`.net.xml`), and the GA searches for the green durations that minimize total
+vehicle delay. "Delay" here just means vehicle-seconds spent halting, measured
+by running the network through SUMO once per candidate plan. The dashboard shows
+you the before/after so you can see how much you actually gained over plain
+fixed-time signals.
+
+Because each plan is scored by an independent SUMO run, the population can be
+evaluated in parallel with MPI. That's the large-scale part: the exact same
+optimizer runs serially on a laptop or across dozens of workers on Ares.
 
 ```
-Dashboard (Dash/Plotly)  ──►  Genetic Algorithm (DEAP)  ──►  SUMO simulation (headless)
-   build / edit network        searches green durations        scores each candidate
-   show before/after           keeps the best plan             = total vehicle delay
-                                      │
-                                      └─ parallel evaluation via mpi4py  → HPC scaling study
+Dashboard (Dash/Plotly)  ->  Genetic Algorithm (DEAP)  ->  SUMO (headless)
+   build/edit network          searches green durations      scores each plan
+   show before/after           keeps the best one            = total delay
+                                      |
+                                      +-- parallel eval via mpi4py -> scaling study
 ```
 
-- **Genome:** green-phase durations across every intersection (yellow/red phases stay fixed,
-  so generated programs are always valid). See `src/sim/encoding.py`.
-- **Fitness:** total vehicle delay (vehicle-seconds spent halting) from one headless SUMO run.
-  See `src/sim/evaluate.py`.
-- **Optimizer:** DEAP GA; evaluation is dispatched through a `map_fn` so the *same* code runs
-  serially (`map`) or in parallel (`MPIPoolExecutor.map`). See `src/ga/`.
+A few details that matter:
 
-## Requirements
+- **Genome** is the list of green durations across every intersection. Yellow
+  and all-red phases are left alone, so whatever the GA produces is still a
+  valid, safe signal program (`src/sim/encoding.py`).
+- **Fitness** is the total vehicle delay from one headless SUMO run
+  (`src/sim/evaluate.py`).
+- The optimizer dispatches every evaluation through a `map_fn`, so swapping
+  `map` for `MPIPoolExecutor.map` is the only difference between the local and
+  the parallel run (`src/ga/`).
 
-- **SUMO** installed with `SUMO_HOME` set (so the bundled `traci`/`sumolib` import). Tested with SUMO 1.27.
-- Python deps: `pip install -r requirements.txt`
-- HPC section only: `pip install mpi4py` (built against the cluster's MPI).
+## Setup
 
-## Run it
+You need SUMO installed with `SUMO_HOME` set so the bundled `traci`/`sumolib`
+import. I tested with 1.27 locally and 1.20 on the cluster.
 
 ```bash
-# 1) CLI smoke test: build a small grid, optimize, print improvement
+pip install -r requirements.txt
+```
+
+For the HPC part you also need `mpi4py` built against the cluster's MPI.
+
+## Running it
+
+```bash
+# quick CLI check: build a small grid, optimize, print the improvement
 python -m src.ga.optimizer --config config/scenario_small.yaml --out runs/cli
 
-# 2) Dashboard (the centerpiece)
-python -m app.dashboard          # open http://127.0.0.1:8050
+# the dashboard
+python -m app.dashboard          # http://127.0.0.1:8050
 
-# 3) Tests
+# tests
 pytest -q
 ```
 
-## Cyfronet (Ares) compute studies
+## The scaling studies on Ares
 
-| Study | Command | Output |
-|-------|---------|--------|
-| **B1 strong scaling** (speedup, efficiency, time-to-solution) | `sbatch scripts/slurm/job_strong_scaling.sh` | `results/strong_scaling.png` |
-| **B2 weak scaling** | `sbatch scripts/slurm/job_weak_scaling.sh` | `results/weak_scaling.png` |
-| **B4 throughput** (evals/s vs workers) | `sbatch scripts/slurm/job_throughput.sh` | `results/throughput.png` |
-| **B5 problem size** (cost vs city size) | `sbatch scripts/slurm/job_problem_size.sh` | `results/problem_size.png` |
-| **B6 traci vs libsumo** | compare the `backend` column across a local vs cluster run | — |
-| **Algorithm comparison** (GA vs random / hill climbing / simulated annealing, equal eval budget) | `sbatch scripts/slurm/job_algorithms.sh` | `results/algorithms.png` |
+Each study is its own SLURM job. They all share the same environment block (load
+the modules, activate the `traffic` conda env, point at the source-built SUMO),
+then launch the parallel GA with `srun python -m mpi4py.futures`. Set your PLGrid
+grant in the `#SBATCH --account=` line before submitting.
 
-Each job appends rows to a CSV and renders a plot via `analysis/plot_scaling.py` /
-`analysis/plot_throughput.py`. Set your PLGrid grant in each `#SBATCH --account=` line.
+| Study | Run it with | Output |
+|-------|-------------|--------|
+| Strong scaling (speedup, efficiency) | `sbatch scripts/slurm/job_strong_scaling.sh` | `results/strong_scaling.png` |
+| Weak scaling | `sbatch scripts/slurm/job_weak_scaling.sh` | `results/weak_scaling.png` |
+| Throughput (evals/s vs workers) | `sbatch scripts/slurm/job_throughput.sh` | `results/throughput.png` |
+| Problem size (cost vs city size) | `sbatch scripts/slurm/job_problem_size.sh` | `results/problem_size.png` |
+| Algorithm comparison (GA vs random / hill-climb / annealing) | `sbatch scripts/slurm/job_algorithms.sh` | `results/algorithms.png` |
 
-**Run meaningful numbers locally (no cluster, serial):**
+Each job appends rows to a CSV; the plots are made afterwards from those CSVs
+(matplotlib isn't installed on the cluster on purpose, so plotting never blocks a
+run). Plot locally, e.g.:
+
 ```bash
-# per-evaluation cost & throughput vs city size — real data from your machine
+python analysis/plot_algorithms.py --csv results/algorithms.csv \
+    --summary results/algorithms_summary.csv --out results/algorithms.png
+```
+
+The headline numbers from my runs: the GA cuts total delay by 27.3% on an 8x8
+city, the parallel evaluator hits a 26.96x speedup on 47 workers and sustains up
+to ~46 SUMO evaluations per second.
+
+If you don't have cluster access, you can still get real numbers locally (serial):
+
+```bash
 python -m src.bench.benchmark --grids 3,5,8 --evals 15 --csv results/benchmark.csv
 python analysis/plot_throughput.py --csv results/benchmark.csv --out results/size.png --mode size
 ```
 
-> Locally SUMO ships only `traci` (socket-based). On the cluster, install the `eclipse-sumo`
-> wheel (or `libsumo`) so simulations run in-process and per-evaluation overhead is minimal —
-> the `backend` column in the benchmark CSV quantifies exactly that difference (study B6).
+One caveat: locally SUMO usually ships only `traci` (socket-based), which is
+slow. On the cluster I build SUMO from source so `libsumo` runs the simulations
+in-process; that's what makes each evaluation cheap enough for the scaling to
+look good.
 
-## Train your own network on Cyfronet (round-trip)
+## Training a network on Ares and bringing it back
 
-The dashboard ↔ Ares round-trip lets you design a network locally, **train** its
-signal timings on the cluster, then bring the result back to *see* how much it
-improved. The whole exchange is two files: a ZIP up, a JSON down.
+The dashboard can hand a network off to the cluster and take the result back, so
+you design locally, train on Ares, and then see how much it improved. The whole
+exchange is two files: a zip up, a json down.
 
 ```
-Dashboard ──Export to Cyfronet──► cyfronet_<name>.zip ──scp──► Ares
-                                                                  │ sbatch optimize_job.sh
-                                                                  │ (parallel GA trains the lights)
-Dashboard ◄──Import result──── optimization_result.json ◄──scp──┘
+Dashboard --Export to Cyfronet--> cyfronet_<name>.zip --scp--> Ares
+                                                                 | sbatch optimize_job.sh
+                                                                 | (parallel GA trains the lights)
+Dashboard <--Import result-- optimization_result.json <--scp----+
 ```
 
-### 1) Export the model from the dashboard
-
-In the dashboard build a grid/spider network (or upload your own `*.net.xml`),
-optionally tune the demand, then in **section 3 (Cyfronet)** click
-**Export to Cyfronet**. You get `cyfronet_<name>.zip` containing the exact network
-+ demand, a beefed-up `scenario.yaml` (bigger GA than the local smoke run), the
+**1. Export.** Build (or upload) a network in the dashboard, tweak the demand if
+you want, then hit *Export to Cyfronet* in section 3. You get a
+`cyfronet_<name>.zip` with the network, demand, a bigger `scenario.yaml`, the
 project `src/`, `requirements.txt` and a ready `optimize_job.sh`.
 
-### 2) Copy it to Ares and unzip
+**2. Copy it over.**
 
 ```bash
-# from your machine
 scp cyfronet_<name>.zip plgUSER@ares.cyfronet.pl:/net/afscra/people/plgUSER/
 # on Ares
 cd /net/afscra/people/plgUSER && unzip cyfronet_<name>.zip && cd cyfronet_<name>
 ```
 
-### 3) Point the job at the working SUMO + MPI environment
-
-> The `optimize_job.sh` shipped in the bundle installs the `eclipse-sumo` wheel —
-> **that binary SIGSEGVs on Ares compute nodes**. Use the SUMO built from source
-> instead (see the one-time build recipe in `scripts/slurm/*.sh`). Replace the
-> environment block at the top of `optimize_job.sh` with:
+**3. Fix the environment.** The `optimize_job.sh` in the bundle tries to install
+the `eclipse-sumo` wheel, and that binary segfaults on Ares compute nodes. Use
+the SUMO built from source instead (the build recipe is in the
+`scripts/slurm/*.sh` headers) and replace the top of `optimize_job.sh` with:
 
 ```bash
 module load miniconda3/24.5.0-0
-module load openmpi/4.1.6-gcc-13.2.0    # libmpi.so + PMIx for srun-launched ranks
+module load openmpi/4.1.6-gcc-13.2.0
 eval "$(conda shell.bash hook)"
 conda activate traffic
 
-export SUMO_HOME=$HOME/sumo-1_20_0       # SUMO compiled from source (with libsumo)
+export SUMO_HOME=$HOME/sumo-1_20_0
 export PATH=$SUMO_HOME/bin:$PATH
 export PYTHONPATH=$SUMO_HOME/tools:${PYTHONPATH:-}
 export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$SUMO_HOME/bin:${LD_LIBRARY_PATH:-}
-export SLURM_MPI_TYPE=pmix               # else MPI_Init aborts on a NULL communicator
+export SLURM_MPI_TYPE=pmix
 ```
 
-Set `--account` to your PLGrid grant, and launch the training with `srun` (the
-bundle uses `srun python -m mpi4py.futures -m src.ga.parallel … --result …`):
+Set `--account` to your grant and submit:
 
 ```bash
 sbatch optimize_job.sh
-squeue -u $USER          # watch it run; log is in result/train_<jobid>.log
+squeue -u $USER
 ```
 
-The parallel GA evaluates the whole population across MPI workers and writes
-**`result/optimization_result.json`** — the trained plan (best genome, baseline vs
-optimized delay, learning curve). `result/scaling.csv` additionally logs
-(workers, elapsed) if you want the scaling numbers.
+The job writes `result/optimization_result.json` with the trained plan (best
+genome, baseline vs optimized delay, the learning curve).
 
-### 4) Bring the result back and evaluate it
+**4. Bring it back.**
 
 ```bash
-# from your machine
 scp plgUSER@ares.cyfronet.pl:/net/afscra/people/plgUSER/cyfronet_<name>/result/optimization_result.json .
 ```
 
-Open the dashboard, go to **section 3 → Import result**, and upload that JSON.
-The before/after charts redraw with the cluster-trained timings: total vehicle
-delay vs the fixed-time baseline, the `improvement_pct`, and the GA learning
-curve — so you can judge directly how well the trained controller performs.
+Open the dashboard, go to section 3 -> Import result, upload the json, and the
+before/after charts redraw with the cluster-trained timings.
 
-## Layout
+## Where things are
 
-| Path | Purpose |
-|------|---------|
-| `src/network/build_network.py` | wrap `netgenerate` + `randomTrips.py` |
-| `src/sim/`                      | SUMO connection, genome encoding, fitness |
-| `src/ga/optimizer.py`           | genetic algorithm (serial) |
-| `src/ga/parallel.py`            | MPI-parallel GA (strong/weak scaling, trained-plan JSON) |
-| `src/bench/benchmark.py`        | throughput / problem-size benchmark (serial or MPI) |
-| `src/export/bundle.py`          | "Export to Cyfronet" bundle builder |
-| `app/`                          | Dash dashboard + Plotly figures |
-| `scripts/slurm/`                | Ares batch jobs (B1, B2, B4, B5) |
-| `src/compare/benchmark_algorithms.py` | algorithm comparison (GA vs random/hill-climb/anneal, equal budget) |
-| `analysis/plot_scaling.py`, `analysis/plot_throughput.py`, `analysis/plot_algorithms.py` | scaling, throughput & algorithm-comparison plots |
-| `config/`                       | scenario presets |
+| Path | What's in it |
+|------|--------------|
+| `src/network/build_network.py` | wraps `netgenerate` + `randomTrips.py` |
+| `src/sim/` | SUMO connection, genome encoding, fitness |
+| `src/ga/optimizer.py` | the genetic algorithm (serial) |
+| `src/ga/parallel.py` | MPI version for the scaling studies + trained-plan json |
+| `src/bench/benchmark.py` | throughput / problem-size benchmark |
+| `src/compare/benchmark_algorithms.py` | GA vs random / hill-climb / annealing |
+| `src/export/bundle.py` | the "Export to Cyfronet" bundle builder |
+| `app/` | the Dash dashboard and Plotly figures |
+| `analysis/` | the plotting scripts |
+| `scripts/slurm/` | the Ares batch jobs |
+| `config/` | scenario presets |

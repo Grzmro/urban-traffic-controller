@@ -6,4 +6,3 @@ results/
 .venv/
 venv/
 .pytest_cache/
-.claude/

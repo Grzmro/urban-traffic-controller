@@ -1,32 +1,31 @@
-# Small scenario for local development / CLI smoke test.
 name: small_grid_3x3
 
 network:
-  type: grid          # grid | spider | rand
-  grid_number: 3      # NxN junctions
-  grid_length: 150    # edge length [m]
-  lanes: 1            # lanes per direction
-  attach_length: 100  # boundary stub length [m] so fringe junctions are real intersections
+  type: grid
+  grid_number: 3
+  grid_length: 150
+  lanes: 1
+  attach_length: 100
 
 demand:
-  end: 600            # simulation horizon [s]
-  period: 1.6         # one vehicle inserted every `period` seconds (lower = busier)
-  fringe_factor: 5    # bias trips to enter/leave at the network fringe
+  end: 600
+  period: 1.6
+  fringe_factor: 5
   seed: 42
 
 simulation:
-  step_length: 1.0    # [s]
+  step_length: 1.0
   seed: 42
 
 signals:
-  min_green: 5        # bounds for optimized green-phase durations [s]
+  min_green: 5
   max_green: 60
-  yellow: 3           # fixed yellow duration [s] (not optimized)
+  yellow: 3
 
 ga:
   population: 24
   generations: 15
-  cx_prob: 0.6        # crossover probability
-  mut_prob: 0.3       # mutation probability
+  cx_prob: 0.6
+  mut_prob: 0.3
   tournament_size: 3
   seed: 1

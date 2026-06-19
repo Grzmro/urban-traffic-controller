@@ -39,7 +39,6 @@ def main() -> None:
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
 
-    # ---- convergence ---------------------------------------------------- #
     present = [a for a in ORDER if a in conv["algorithm"].unique()]
     for algo in present:
         d = conv[conv["algorithm"] == algo].sort_values("evals")
@@ -52,7 +51,6 @@ def main() -> None:
             title="Convergence — lower is better")
     ax1.legend(fontsize=9); ax1.grid(alpha=0.3)
 
-    # ---- final improvement bars ----------------------------------------- #
     algos = [a for a in ORDER if a in summ.index]
     imp = [float(summ.loc[a, "improvement_pct"]) for a in algos]
     bars = ax2.bar([LABELS.get(a, a) for a in algos], imp,

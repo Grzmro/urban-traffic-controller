@@ -17,7 +17,6 @@ from deap import base, creator, tools
 from src.sim.encoding import TLSSpec, read_tls_spec
 from src.sim.evaluate import evaluate
 
-# DEAP requires creating the fitness/individual types once per process.
 if not hasattr(creator, "FitnessMin"):
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
 if not hasattr(creator, "Individual"):
@@ -39,7 +38,7 @@ class OptResult:
     best_genome: list[int]
     best_fitness: float
     baseline_fitness: float
-    convergence: list[float] = field(default_factory=list)  # best fitness per generation
+    convergence: list[float] = field(default_factory=list)
 
     @property
     def improvement_pct(self) -> float:
@@ -76,7 +75,6 @@ def optimize(spec: TLSSpec, net: str, routes: str, sim_cfg: dict, ga_cfg: dict,
     cx_prob = ga_cfg.get("cx_prob", 0.6)
     mut_prob = ga_cfg.get("mut_prob", 0.3)
 
-    # Seed the RNG used by DEAP's variation operators for reproducibility.
     random.seed(ga_cfg.get("seed", 1))
     pop = toolbox.population(n=pop_size)
     if pop:
@@ -110,7 +108,6 @@ def optimize(spec: TLSSpec, net: str, routes: str, sim_cfg: dict, ga_cfg: dict,
         invalid = [ind for ind in offspring if not ind.fitness.valid]
         evaluate_pop(invalid)
 
-        # Elitism: keep the best individual seen so far.
         pop = offspring
         pop[0] = toolbox.clone(hof[0])
         hof.update(pop)

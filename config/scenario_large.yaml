@@ -1,18 +1,15 @@
-# Larger scenario for the HPC scaling study on Cyfronet Ares.
-# Bigger network + bigger GA population => more independent simulations per
-# generation => more parallelism to exploit.
 name: large_grid_8x8
 
 network:
   type: grid
-  grid_number: 8       # 64 signalized intersections
+  grid_number: 8
   grid_length: 150
   lanes: 2
   attach_length: 100
 
 demand:
   end: 1200
-  period: 0.8          # busier traffic
+  period: 0.8
   fringe_factor: 5
   seed: 42
 
@@ -26,7 +23,7 @@ signals:
   yellow: 3
 
 ga:
-  population: 128       # large population = lots of parallel evaluations
+  population: 128
   generations: 20
   cx_prob: 0.6
   mut_prob: 0.3

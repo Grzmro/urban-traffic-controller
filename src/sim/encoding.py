@@ -30,9 +30,9 @@ class PhaseInfo:
 @dataclass
 class TLSSpec:
     """Structure of all traffic-light programs in a network."""
-    programs: dict[str, str]                       # tls_id -> programID
-    phases: dict[str, list[PhaseInfo]]             # tls_id -> phases
-    slots: list[tuple[str, int]] = field(default_factory=list)  # genome index -> (tls, phase idx)
+    programs: dict[str, str]
+    phases: dict[str, list[PhaseInfo]]
+    slots: list[tuple[str, int]] = field(default_factory=list)
     min_green: int = 5
     max_green: int = 60
 
@@ -81,7 +81,6 @@ def apply_genome(spec: TLSSpec, genome: list[int]) -> None:
     Logic = conn.trafficlight.Logic
     Phase = conn.trafficlight.Phase
 
-    # Group genome values by traffic light.
     by_tls: dict[str, dict[int, int]] = {}
     for value, (tls, idx) in zip(genome, spec.slots):
         by_tls.setdefault(tls, {})[idx] = clamp(value, spec)

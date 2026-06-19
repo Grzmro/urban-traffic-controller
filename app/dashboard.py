@@ -321,7 +321,7 @@ def on_import(contents):
     try:
         _, b64 = contents.split(",", 1)
         data = json.loads(base64.b64decode(b64))
-    except Exception as exc:  # noqa: BLE001 - surface any parse error to the user
+    except Exception as exc:
         return no_update, no_update, no_update, f"Import failed: {exc}"
 
     conv = convergence_figure(data["convergence"], data["baseline_fitness"])
@@ -355,13 +355,12 @@ def on_animate(_n, paths, opt_store, topo, grid_number, lanes, grid_length,
     sig = cfg["signals"]
     spec = read_tls_spec(paths["net"], paths["routes"],
                          min_green=sig["min_green"], max_green=sig["max_green"])
-    # Animate the optimized plan if one exists, otherwise the default fixed-time plan.
     if opt_store and opt_store.get("genome"):
         genome, label = opt_store["genome"], "optimized plan"
     else:
         genome, label = spec.baseline_genome(), "baseline (fixed-time) plan"
 
-    horizon = min(int(_v(end, 600)), 300)  # keep the clip short and snappy
+    horizon = min(int(_v(end, 600)), 300)
     frames = collect_frames(spec, genome, paths["net"], paths["routes"],
                             end=horizon, seed=cfg["simulation"]["seed"])
     fig = animation_figure(frames, paths["net"], title=f"Traffic — {label}")

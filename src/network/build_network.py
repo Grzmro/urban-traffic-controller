@@ -16,7 +16,7 @@ import sys
 import uuid
 from pathlib import Path
 
-import sumolib  # type: ignore  # provided by %SUMO_HOME%/tools
+import sumolib
 
 
 def _sumo_home() -> Path:
@@ -50,7 +50,6 @@ def _netgenerate_args(net_cfg: dict, out_net: Path) -> list[str]:
     else:
         raise ValueError(f"Unknown network type: {topo!r}")
 
-    # Make every junction a real signalized intersection and keep geometry simple.
     args += [
         "--default.lanenumber", str(net_cfg.get("lanes", 1)),
         "--default-junction-type", "traffic_light",
@@ -75,11 +74,9 @@ def build_network(cfg: dict, out_dir: str | os.PathLike) -> dict:
     net_path = run_dir / "net.net.xml"
     routes_path = run_dir / "routes.rou.xml"
 
-    # 1) Network ----------------------------------------------------------
     net_args = _netgenerate_args(cfg.get("network", {}), net_path)
     subprocess.run(net_args, check=True, capture_output=True, text=True)
 
-    # 2) Demand -----------------------------------------------------------
     demand = cfg.get("demand", {})
     random_trips = _sumo_home() / "tools" / "randomTrips.py"
     trips_args = [

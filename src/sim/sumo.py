@@ -9,16 +9,15 @@ from __future__ import annotations
 
 import shutil
 
-import sumolib  # type: ignore
+import sumolib
 
-try:  # pragma: no cover - depends on local install
-    import libsumo as _conn  # type: ignore
+try:
+    import libsumo as _conn
     HAVE_LIBSUMO = True
-except ImportError:  # pragma: no cover
-    import traci as _conn  # type: ignore
+except ImportError:
+    import traci as _conn
     HAVE_LIBSUMO = False
 
-# Re-exported handle used throughout the sim layer.
 conn = _conn
 
 

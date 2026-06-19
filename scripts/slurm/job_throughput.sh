@@ -6,25 +6,19 @@
 #SBATCH --ntasks=48
 #SBATCH --time=24:00:00
 #SBATCH --output=results/throughput_%j.log
-#
-# Study B4 — throughput (SUMO evals/s) vs number of MPI workers.
 
 set -euo pipefail
 
 module load miniconda3/24.5.0-0
-module load openmpi/4.1.6-gcc-13.2.0    # provides libmpi.so + PMIx for srun-launched ranks
+module load openmpi/4.1.6-gcc-13.2.0
 eval "$(conda shell.bash hook)"
 conda activate traffic
 
-# Use the locally compiled SUMO (source tree): binaries in bin/, python
-# bindings (libsumo, traci, sumolib, randomTrips) in tools/. libsumocpp.so
-# and xerces-c must be on LD_LIBRARY_PATH for libsumo to import.
 export SUMO_HOME=$HOME/sumo-1_20_0
 export PATH=$SUMO_HOME/bin:$PATH
 export PYTHONPATH=$SUMO_HOME/tools:${PYTHONPATH:-}
 export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$SUMO_HOME/bin:${LD_LIBRARY_PATH:-}
 
-# OpenMPI 4.1.6 was built with PMIx; tell srun to launch ranks via PMIx.
 export SLURM_MPI_TYPE=pmix
 
 mkdir -p results

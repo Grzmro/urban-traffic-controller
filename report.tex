@@ -1,0 +1,552 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{siunitx}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{results/}}
+\sisetup{group-separator={\,},detect-weight=true}
+\DeclareSIUnit{\veh}{veh}
+
+\captionsetup{font=small,labelfont=bf}
+
+\title{\textbf{Urban Traffic Controller}\\[2pt]
+\large Large-scale optimisation of traffic-signal timings\\
+with a parallel genetic algorithm on Cyfronet Ares}
+\author{Grzegorz Mróz \and Katarzyna Kucharczyk}
+\date{June 2026}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+\bigskip
+
+\begin{abstract}
+\noindent
+We present an end-to-end system that designs road networks, optimises their
+traffic-signal timings, and scales the optimisation across a supercomputer.
+A microscopic traffic simulator (SUMO) scores a candidate signal plan by the
+\emph{total vehicle delay} it produces; a genetic algorithm (GA) searches the
+space of green-phase durations to minimise that delay. Because every fitness
+evaluation is an independent SUMO run, the population is evaluated in parallel
+with MPI, turning a sequential search into a high-performance computing (HPC)
+workload. On a single $8\times8$ city the optimised plan cuts total vehicle
+delay by \SI{27.3}{\percent} versus fixed-time signals. We empirically justify
+the choice of a GA by comparing it, on an equal evaluation budget, against
+random search, hill climbing and simulated annealing --- the GA reaches the
+deepest improvement. On Cyfronet Ares the parallel evaluator delivers a
+\textbf{$26.96\times$ speedup on 47 workers} and sustains up to
+\SI{45.8}{evaluations\per\second}, while a problem-size study shows the cost per
+evaluation growing gracefully from a 9-intersection grid to a 1024-intersection
+city. An interactive dashboard ties the pieces together: build a network,
+optimise it, and watch the before/after traffic.
+\end{abstract}
+\bigskip
+
+% ====================================================================
+\section{Problem statement}
+% ====================================================================
+Traffic lights at an intersection cycle through a fixed sequence of phases.
+The duration of each \emph{green} phase decides how much of the cycle a given
+movement receives. Poorly chosen durations force vehicles to wait at red while
+a conflicting approach sits empty, wasting time and fuel across the whole
+network. The classical engineering answer --- fixed-time plans from rules of
+thumb --- ignores the actual demand pattern of a specific city.
+
+We treat signal timing as a black-box optimisation problem. Let a city contain
+intersections $i=1,\dots,N$, each with $g_i$ controllable green phases. A
+\emph{plan} is the vector of all green durations,
+\[
+  \mathbf{x} = (x_1,\dots,x_n), \qquad n = \sum_{i=1}^{N} g_i,
+  \qquad x_j \in [\,g_{\min}, g_{\max}\,] \subset \mathbb{Z}.
+\]
+Yellow and all-red phases stay fixed, so every plan we generate is a valid,
+safe signal program. The quality of a plan is the \emph{total vehicle delay}
+it produces over a simulated horizon $T$:
+\begin{equation}
+  D(\mathbf{x}) \;=\; \sum_{v \in V} \int_{0}^{T}
+     \mathbf{1}\!\left[\,\text{vehicle } v \text{ is halting at time } t\,\right]\,dt,
+  \label{eq:delay}
+\end{equation}
+i.e.\ the cumulative vehicle-seconds spent stopped. We seek the plan
+$\mathbf{x}^\star = \arg\min_{\mathbf{x}} D(\mathbf{x})$. The objective has no
+closed form: $D(\mathbf{x})$ is only available by running a full microscopic
+traffic simulation, which makes the problem a natural fit for population-based,
+derivative-free search --- and an expensive one, motivating parallelism.
+
+% ====================================================================
+\section{Tools and methods}
+% ====================================================================
+\begin{description}
+  \item[SUMO] (Simulation of Urban MObility) --- an open-source microscopic
+  traffic simulator. Each vehicle is modelled individually; the simulator
+  reports per-step halting counts from which Eq.~\eqref{eq:delay} is computed.
+  Networks are generated with \texttt{netgenerate} and demand with
+  \texttt{randomTrips.py}. On the cluster SUMO is driven in-process through the
+  \texttt{libsumo} bindings, avoiding socket overhead.
+  \item[DEAP] --- a Python evolutionary-computation framework providing the GA
+  operators (selection, crossover, mutation) we configure for the integer
+  genome.
+  \item[mpi4py] --- MPI bindings for Python. We use
+  \texttt{MPIPoolExecutor} from \texttt{mpi4py.futures} to evaluate the
+  population in a master--worker pattern.
+  \item[Dash / Plotly] --- the interactive dashboard front-end: build a
+  network, launch the optimiser, and visualise the before/after traffic.
+  \item[Cyfronet Ares] --- the HPC platform (partition \texttt{plgrid}). SUMO
+  v1.20.0 is built from source with \texttt{libsumo}; OpenMPI 4.1.6 launches the
+  ranks via PMIx.
+\end{description}
+
+% ====================================================================
+\section{System architecture}
+% ====================================================================
+The system is a single pipeline that can run serially on a laptop or in
+parallel on the cluster without code changes:
+\[
+\boxed{\text{Dashboard}} \;\rightarrow\;
+\boxed{\text{Genetic algorithm}} \;\rightarrow\;
+\boxed{\text{SUMO simulation}}
+\]
+The dashboard builds or uploads a network; the GA proposes signal plans; SUMO
+scores each plan. Crucially, the GA dispatches every evaluation through an
+abstract \texttt{map\_fn}. Locally this is Python's built-in \texttt{map}
+(serial); on the cluster it is \texttt{MPIPoolExecutor.map} (parallel). The
+\emph{same} optimiser code therefore drives both the single-machine demo and the
+HPC scaling study --- only the map function changes.
+
+% ====================================================================
+\section{Problem formulation}
+% ====================================================================
+\paragraph{Genome.} A candidate plan is encoded as an integer vector: one gene
+per controllable green phase, holding its duration in seconds and bounded by
+$[g_{\min},g_{\max}]=[\SI{5}{\second},\SI{60}{\second}]$. For an $8\times8$ grid
+this yields $n=128$ genes; for a $32\times32$ city, $n=2048$. Because only green
+durations are encoded and the protective yellow/red phases are untouched, the
+decoder always emits a legal SUMO signal program.
+
+\paragraph{Fitness.} Decoding a genome writes the durations into the network's
+signal programs; one headless SUMO run then returns the total vehicle delay of
+Eq.~\eqref{eq:delay}. Lower is better. A single \emph{baseline} run with the
+default fixed-time plan provides the reference against which every result is
+reported as an improvement percentage.
+
+% ====================================================================
+\section{The optimisation algorithm}
+% ====================================================================
+\subsection{Why a genetic algorithm}
+The objective is non-differentiable, noisy and multimodal: small changes in one
+intersection's timing interact non-linearly with traffic arriving from its
+neighbours. There are no usable gradients. A genetic algorithm is well suited
+because it (i) needs only the scalar fitness, (ii) maintains a \emph{population}
+of plans, exploring many regions of the search space at once, and (iii) exposes
+exactly the parallelism we need --- the whole population is evaluated
+independently each generation. Section~\ref{sec:compare} backs this choice with
+an empirical comparison against simpler search strategies.
+
+\subsection{Operators}
+\begin{description}
+  \item[Selection] tournament selection (size 3): pick the fitter of randomly
+  drawn plans, biasing reproduction towards good solutions while keeping
+  diversity.
+  \item[Crossover] uniform crossover: each child gene is taken from either
+  parent with equal probability, recombining good per-intersection timings.
+  \item[Mutation] per-gene uniform reset within $[g_{\min},g_{\max}]$, which
+  injects fresh durations and prevents premature convergence.
+  \item[Elitism] a Hall of Fame of size~1 carries the best plan unchanged into
+  the next generation, so the optimum never regresses --- the result can never
+  be worse than the baseline.
+\end{description}
+
+\subsection{Pseudocode}
+\noindent\hrulefill
+\begin{verbatim}
+initialise population P of random integer plans
+evaluate D(x) for every x in P        # via map_fn -> SUMO (parallel)
+record best-so-far in Hall of Fame
+for generation = 1 .. G:
+    offspring <- tournament_select(P)
+    offspring <- uniform_crossover(offspring, p_cx)
+    offspring <- uniform_reset_mutation(offspring, p_mut)
+    evaluate D(x) for every new x       # via map_fn -> SUMO (parallel)
+    P <- offspring + elite(Hall of Fame)
+    update Hall of Fame
+return best plan in Hall of Fame
+\end{verbatim}
+\noindent\hrulefill
+
+\medskip
+The only line that touches the cluster is \texttt{evaluate} --- it submits the
+generation's plans through \texttt{map\_fn}. Everything else (selection,
+recombination, bookkeeping) is cheap and runs on the master.
+
+% ====================================================================
+\section{Algorithm comparison: why the GA earns its place}
+\label{sec:compare}
+% ====================================================================
+A reviewer may reasonably ask whether the GA's machinery is worth it, or whether
+a simpler search would do as well. To answer this empirically we ran four
+algorithms on the \emph{same} objective (the $8\times8$ city, baseline delay
+\SI{39473}{\veh\second}) and gave each the \emph{same evaluation budget} --- the
+GA's own evaluation count ($\approx1990$ SUMO runs). All metaheuristics are
+seeded with the baseline plan (mirroring the GA's elitism), so none can report a
+result worse than fixed-time; the question is purely \emph{how far below the
+baseline each can reach on an equal budget}.
+
+\begin{description}
+  \item[Random search] samples random plans and keeps the best.
+  \item[Hill climbing] parallel random-restart local search: each chain accepts
+  a one-gene neighbour only if it improves.
+  \item[Simulated annealing] like hill climbing, but accepts worsening moves
+  with probability $e^{-\Delta/T}$ under a geometric cooling schedule.
+  \item[Genetic algorithm] the production optimiser described above.
+\end{description}
+
+\begin{table}[H]
+\centering
+\caption{Final result of each algorithm on an equal evaluation budget
+($8\times8$ city, baseline $D=\SI{39473}{\veh\second}$). Lower delay is better.}
+\label{tab:compare}
+\begin{tabular}{lS[table-format=5.0]S[table-format=2.1]S[table-format=4.0]}
+\toprule
+Algorithm & {Best delay [veh$\cdot$s]} & {Improvement [\%]} & {Evaluations} \\
+\midrule
+\textbf{Genetic algorithm} & \textbf{28689} & \textbf{27.3} & 1991 \\
+Hill climbing              & 31693          & 19.7          & 1978 \\
+Random search              & 36010          & 8.8           & 1991 \\
+Simulated annealing        & 36405          & 7.8           & 1978 \\
+\midrule
+Baseline (fixed-time)      & 39473          & 0.0           & 1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{algorithms.png}
+\caption{Algorithm comparison on equal budget. \emph{Left:} convergence ---
+best total delay against the number of SUMO evaluations; the GA descends below
+every competitor. \emph{Right:} final improvement over the fixed-time baseline.
+The GA reaches \SI{-27.3}{\percent}, hill climbing \SI{-19.7}{\percent}, while
+random search and simulated annealing stall near \SI{-8}{\percent}.}
+\label{fig:compare}
+\end{figure}
+
+\paragraph{Reading the result.} Table~\ref{tab:compare} and
+Fig.~\ref{fig:compare} make the case quantitatively. The GA improves on the
+baseline by \SI{27.3}{\percent}, clearly the best of the four. Pure random
+search barely moves the needle (\SI{-8.8}{\percent}): the search space is far
+too large to sample blindly. Hill climbing does much better
+(\SI{-19.7}{\percent}) by exploiting local structure, but its greedy chains get
+stuck in local optima. Simulated annealing, on this budget and neighbourhood,
+spends too many of its evaluations accepting worsening moves and never catches
+up. The GA combines the strengths the others lack --- a population that explores
+broadly, crossover that recombines good per-intersection timings, and elitism
+that locks in progress --- which is exactly why it reaches the deepest
+improvement. The comparison thus turns ``we chose a GA'' from an assertion into
+a measured conclusion.
+
+% ====================================================================
+\section{Parallelisation}
+% ====================================================================
+Each generation requires one SUMO run per plan, and those runs are completely
+independent. This is the parallelism the system exploits. With a master--worker
+pattern, the master (MPI rank 0) holds the GA state and scatters the
+generation's plans to $w$ worker ranks; each worker runs SUMO on its plans and
+returns the delays; the master gathers them and proceeds.
+
+The achievable speedup is bounded by Amdahl's law. If a fraction $f$ of the work
+is inherently serial (here: GA bookkeeping, scatter/gather, and the per-batch
+load imbalance), the speedup on $w$ workers cannot exceed
+\begin{equation}
+  S(w) \;=\; \frac{1}{f + \dfrac{1 - f}{w}}.
+  \label{eq:amdahl}
+\end{equation}
+Because evaluation dominates runtime, $f$ is small and the system stays close to
+linear for moderate worker counts, with efficiency tapering as $w$ grows and the
+fixed serial cost becomes proportionally larger (Sec.~\ref{sec:strong}).
+
+% ====================================================================
+\section{Experimental setup}
+% ====================================================================
+All HPC measurements were taken on \textbf{Cyfronet Ares} (PLGrid grant
+\texttt{plglscclass26-cpu}, partition \texttt{plgrid}), on a single compute node
+with up to 48 MPI ranks. SUMO v1.20.0 was \emph{compiled from source} on the
+cluster with the \texttt{libsumo} in-process bindings, because the pre-built
+\texttt{eclipse-sumo} wheel segfaults on Ares compute nodes and ships only the
+slower socket-based \texttt{traci}. OpenMPI 4.1.6 (matching the GCC 13.2.0 used
+to build SUMO) launches the ranks, with \texttt{SLURM\_MPI\_TYPE=pmix} so that
+\texttt{srun} starts them via PMIx.
+
+\paragraph{How a study is run.} Each study is a self-contained SLURM batch
+script in \texttt{scripts/slurm/}, submitted with \texttt{sbatch}. The script
+loads the cluster modules, activates the \texttt{traffic} Conda environment,
+exports the source-built \texttt{SUMO\_HOME}, and launches the parallel run:
+\begin{verbatim}
+module load miniconda3/24.5.0-0
+module load openmpi/4.1.6-gcc-13.2.0   # libmpi + PMIx for srun-launched ranks
+conda activate traffic
+export SUMO_HOME=$HOME/sumo-1_20_0; export SLURM_MPI_TYPE=pmix
+srun python -m mpi4py.futures -m src.ga.parallel  ...  # the parallel GA
+\end{verbatim}
+The \texttt{-m mpi4py.futures} launcher starts an \texttt{MPIPoolExecutor}:
+\textbf{rank 0 is the master} that holds the GA state, and the remaining
+$w = (\text{ranks}-1)$ ranks are \textbf{workers}. Every generation the master
+scatters the population's plans across the workers, each worker runs SUMO
+in-process on its plans and returns the delays, and the master gathers them ---
+the master--worker pattern of the parallelisation section. Each job appends its
+measurements to a CSV on the node; the plots in this report are rendered
+\emph{locally} from those CSVs (Matplotlib is deliberately not installed on the
+cluster, so a job's run is never blocked by plotting).
+
+\paragraph{How the variables were swept.}
+\begin{itemize}
+\item \emph{Strong scaling} and \emph{throughput} (Tables~\ref{tab:strong},
+\ref{tab:throughput}): the city is fixed at $8\times8$ and the run is repeated
+for worker counts $w \in \{1,3,7,15,23,31,47\}$, so the same problem is solved
+with a growing pool.
+\item \emph{Problem size} (Table~\ref{tab:size}): the worker count is fixed at
+$w=23$ and the city is swept from $3\times3$ (9 intersections, $n=18$) to
+$32\times32$ (1024 intersections, $n=2048$).
+\end{itemize}
+The interactive dashboard demonstration in Sec.~\ref{sec:dashboard} instead uses
+a smaller $3\times3$ grid so the optimisation completes in seconds on a laptop;
+it is a usability demo, not an HPC measurement.
+
+% ====================================================================
+\section{Results}
+% ====================================================================
+\subsection{Optimisation quality}
+On the $8\times8$ city the GA reduces total vehicle delay from
+\SI{39473}{\veh\second} (fixed-time) to \SI{28689}{\veh\second}, an improvement
+of \textbf{\SI{27.3}{\percent}}. The same optimised plan is produced regardless
+of worker count (Table~\ref{tab:strong}), confirming that parallelisation
+changes only the time-to-solution, not the solution itself.
+
+\subsection{Strong scaling}
+\label{sec:strong}
+Here the problem is fixed ($8\times8$ city, population 128, 20 generations) and
+the worker count is increased. Table~\ref{tab:strong} and
+Fig.~\ref{fig:strong} report the wall time, the resulting speedup
+$S(w)=t_1/t_w$ and the parallel efficiency $E(w)=S(w)/w$.
+
+\begin{table}[H]
+\centering
+\caption{Strong scaling on the $8\times8$ city (fixed problem, growing workers).}
+\label{tab:strong}
+\begin{tabular}{S[table-format=2.0]S[table-format=4.2]S[table-format=2.2]S[table-format=1.3]}
+\toprule
+{Workers $w$} & {Wall time [s]} & {Speedup $S$} & {Efficiency $E$} \\
+\midrule
+1  & 1291.69 & 1.00  & 1.000 \\
+3  & 437.04  & 2.96  & 0.985 \\
+7  & 199.51  & 6.47  & 0.925 \\
+15 & 100.61  & 12.84 & 0.856 \\
+23 & 72.01   & 17.94 & 0.780 \\
+31 & 60.09   & 21.50 & 0.694 \\
+47 & 47.92   & 26.96 & 0.574 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{strong_scaling.png}
+\caption{Strong scaling: speedup and parallel efficiency versus worker count.
+Speedup stays near-linear up to $\sim$15 workers and reaches $26.96\times$ on
+47 workers; efficiency declines as the fixed serial fraction of
+Eq.~\eqref{eq:amdahl} grows in relative weight.}
+\label{fig:strong}
+\end{figure}
+
+The behaviour is textbook Amdahl. Up to 15 workers the system is over
+\SI{85}{\percent} efficient; beyond that, the per-generation serial overhead
+(scatter/gather plus the wait for the slowest worker in each batch) becomes a
+larger share of an ever-shorter runtime, so efficiency tapers to
+\SI{57}{\percent} at 47 workers. The practically interesting point is the
+time-to-solution: a run that takes \SI{21.5}{\minute} serially completes in
+\SI{48}{\second} on 47 workers.
+
+\subsection{Throughput}
+Throughput measures raw evaluation rate: how many SUMO runs per second the pool
+sustains as workers are added (fixed $8\times8$ city, 480 evaluations).
+
+\begin{table}[H]
+\centering
+\caption{Throughput on the $8\times8$ city (\texttt{libsumo} backend).}
+\label{tab:throughput}
+\begin{tabular}{S[table-format=2.0]S[table-format=2.3]S[table-format=3.1]}
+\toprule
+{Workers $w$} & {Evaluations / s} & {ms / evaluation} \\
+\midrule
+1  & 1.447  & 691.1 \\
+3  & 4.339  & 230.5 \\
+7  & 9.981  & 100.2 \\
+15 & 20.359 & 49.1 \\
+23 & 28.940 & 34.6 \\
+31 & 36.103 & 27.7 \\
+47 & 45.776 & 21.8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{throughput.png}
+\caption{Throughput: sustained SUMO evaluations per second against worker count.
+The rate rises from \SI{1.4}{evaluations\per\second} on a single worker to
+\SI{45.8}{evaluations\per\second} on 47 workers --- a $31\times$ increase in raw
+evaluation capacity.}
+\label{fig:throughput}
+\end{figure}
+
+Throughput climbs from \SI{1.4}{evaluations\per\second} (one worker,
+\SI{691}{\milli\second} per simulation) to \SI{45.8}{evaluations\per\second} on
+47 workers. The in-process \texttt{libsumo} backend is what makes each
+evaluation cheap enough for this to matter; a socket-based backend would spend a
+large fixed cost per run and cap the achievable rate.
+
+\subsection{Problem size}
+Finally we hold the worker count fixed (23) and grow the city, measuring how the
+cost per evaluation scales with the number of intersections.
+
+\begin{table}[H]
+\centering
+\caption{Cost per evaluation versus city size (23 workers, \texttt{libsumo}).}
+\label{tab:size}
+\begin{tabular}{S[table-format=2.0]S[table-format=4.0]S[table-format=4.0]S[table-format=2.3]S[table-format=3.1]}
+\toprule
+{Grid} & {Intersections} & {Genome $n$} & {Evaluations / s} & {ms / eval} \\
+\midrule
+3  & 9    & 18   & 37.048 & 27.0  \\
+5  & 25   & 50   & 35.969 & 27.8  \\
+8  & 64   & 128  & 21.383 & 46.8  \\
+12 & 144  & 288  & 12.815 & 78.0  \\
+16 & 256  & 512  & 9.022  & 110.8 \\
+24 & 576  & 1152 & 6.090  & 164.2 \\
+32 & 1024 & 2048 & 4.730  & 211.4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{problem_size.png}
+\caption{Problem size: evaluation rate and per-evaluation cost as the city grows
+from 9 to 1024 intersections. The cost per evaluation rises sub-quadratically
+with city size, so larger cities remain tractable on the same worker pool.}
+\label{fig:size}
+\end{figure}
+
+A $32\times32$ city has $113\times$ more intersections than a $3\times3$ grid,
+yet the cost per evaluation grows only about $8\times$ (from \SI{27}{\milli
+\second} to \SI{211}{\milli\second}). The simulator scales gracefully with the
+network, so optimising realistically large cities is a matter of adding workers,
+not of hitting an algorithmic wall.
+
+% ====================================================================
+\section{The interactive dashboard}
+\label{sec:dashboard}
+% ====================================================================
+The dashboard is the project's centrepiece: it lets a user build a network,
+optimise its signals, and \emph{see} the effect, without touching the command
+line. The screenshots below are from a $3\times3$ demonstration grid (baseline
+\SI{15638}{\veh\second}, optimised \SI{12124}{\veh\second},
+\SI{-22.5}{\percent}).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{shot_network.png}
+\caption{\textbf{Network builder.} The left panel parametrises the city ---
+topology, junctions per side, lanes, edge length, demand intensity and the
+simulation horizon. Clicking \emph{Build \& show network} generates the SUMO
+network and renders it. Here a $3\times3$ grid with single-lane roads and a
+vehicle every \SI{1.6}{\second} is created.}
+\label{fig:shot-network}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{shot_convergence.png}
+\caption{\textbf{Optimisation result.} The headline cards report baseline,
+optimised and improvement (\SI{-22.5}{\percent}). \emph{Left:} the GA
+convergence curve --- total delay drops generation by generation and plateaus,
+indicating the search has converged. \emph{Right:} the same before/after delay
+as bars.}
+\label{fig:shot-convergence}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{shot_animation.png}
+\caption{\textbf{Traffic animation.} The optimised plan is replayed: each dot is
+a vehicle, coloured by speed (green = moving, red = halting). A time slider
+scrubs through the simulated horizon, making queue formation and clearance
+visible directly.}
+\label{fig:shot-animation}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{shot_heatmap.png}
+\caption{\textbf{Congestion heatmap.} Baseline (left) versus optimised (right),
+with each intersection coloured by its average number of halting vehicles
+(green = clear, red = queued). The optimised network shows visibly fewer hot
+spots --- the same \SI{-22.5}{\percent} improvement, now localised in space.}
+\label{fig:shot-heatmap}
+\end{figure}
+
+The dashboard also supports a Cyfronet round-trip: a network can be exported as
+a bundle, trained on Ares with the parallel GA, and the resulting plan imported
+back to redraw the before/after charts --- closing the loop between the
+single-machine front-end and the HPC back-end.
+
+% ====================================================================
+\section{Discussion}
+% ====================================================================
+Three threads come together in this project. First, framing signal timing as
+black-box minimisation of simulated delay (Eq.~\eqref{eq:delay}) makes the
+problem precise and lets a generic optimiser attack any network the dashboard
+can build. Second, the algorithm comparison (Sec.~\ref{sec:compare}) shows the
+GA is not an arbitrary choice: on an equal budget it beats random search, hill
+climbing and simulated annealing, reaching \SI{-27.3}{\percent} where the others
+reach \SI{-19.7}{\percent} or less. Third, the independence of fitness
+evaluations turns the optimiser into an HPC workload that scales to a
+$26.96\times$ speedup and \SI{45.8}{evaluations\per\second} on Ares, while the
+problem-size study confirms the simulator itself scales gracefully to
+thousand-intersection cities.
+
+The efficiency decline at high worker counts (Sec.~\ref{sec:strong}) is the
+expected consequence of Amdahl's law: with evaluation so cheap under
+\texttt{libsumo}, the fixed per-generation serial cost eventually dominates.
+This is a feature of the regime, not a defect --- the practically relevant
+metric, time-to-solution, still falls from over twenty minutes to under a minute.
+
+% ====================================================================
+\section{Conclusions}
+% ====================================================================
+We built a complete, reproducible pipeline --- dashboard, genetic algorithm and
+SUMO simulator --- that optimises urban traffic-signal timings and scales the
+optimisation on a supercomputer. The optimised plans cut total vehicle delay by
+\SI{27.3}{\percent} on an $8\times8$ city and \SI{22.5}{\percent} on the
+dashboard demonstration, all by retiming existing green phases without any new
+infrastructure. An equal-budget comparison against three alternative search
+strategies confirms that the genetic algorithm is the right tool for this noisy,
+gradient-free objective. By dispatching every fitness evaluation through an
+abstract parallel map, the very same optimiser runs unchanged on a laptop and on
+Cyfronet Ares, where it achieves a $26.96\times$ speedup on 47 workers and
+sustains up to \SI{45.8}{SUMO evaluations\per\second}. Together these results
+show that high-performance computing makes data-driven signal optimisation
+practical at city scale: the bottleneck is no longer the search, but simply the
+number of workers one is willing to spend.
+
+\end{document}

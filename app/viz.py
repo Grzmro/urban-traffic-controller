@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import sumolib  # type: ignore
+import sumolib
 
 _BG = "rgba(0,0,0,0)"
 _HEAT = [[0.0, "#2ecc71"], [0.5, "#f1c40f"], [1.0, "#e74c3c"]]
@@ -35,7 +35,7 @@ def network_figure(net_path: str, title: str = "Road network") -> go.Figure:
         for (x, y) in shape:
             edge_x.append(x)
             edge_y.append(y)
-        edge_x.append(None)  # break the line between edges
+        edge_x.append(None)
         edge_y.append(None)
 
     tls_ids = {t.getID() for t in net.getTrafficLights()}
@@ -101,7 +101,7 @@ def animation_figure(frames: list[dict], net_path: str,
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=edge_x, y=edge_y, mode="lines",
                              line=dict(color="#7f8c9a", width=2), hoverinfo="skip"))
-    fig.add_trace(_vehicle_trace(first))  # trace index 1 = the animated vehicles
+    fig.add_trace(_vehicle_trace(first))
 
     fig.frames = [go.Frame(data=[_vehicle_trace(f)], traces=[1], name=str(i))
                   for i, f in enumerate(frames)]

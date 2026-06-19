@@ -56,7 +56,6 @@ def main() -> None:
     spec = read_tls_spec(net, routes, min_green=sig.get("min_green", 5),
                          max_green=sig.get("max_green", 60))
 
-    # Workers available to the pool = total ranks - 1 (master).
     workers = args.max_workers or (MPI.COMM_WORLD.Get_size() - 1) or 1
 
     t0 = time.perf_counter()
@@ -82,7 +81,6 @@ def main() -> None:
                     f"{res.best_fitness:.0f}", f"{res.improvement_pct:.1f}",
                     ga.get("population"), ga.get("generations")])
 
-    # The trained signal plan — this is what gets imported back into the dashboard.
     if args.result:
         import json
         result_path = Path(args.result)

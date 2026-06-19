@@ -11,16 +11,16 @@ from dataclasses import dataclass
 from .encoding import TLSSpec, apply_genome
 from .sumo import base_command, conn
 
-HALT_SPEED = 0.1  # m/s below which a vehicle counts as waiting
+HALT_SPEED = 0.1
 
 
 @dataclass
 class SimResult:
-    fitness: float            # total delay [veh*s] — the GA minimizes this
+    fitness: float
     total_waiting_time: float
     departed: int
     arrived: int
-    mean_waiting_time: float  # delay per departed vehicle [s]
+    mean_waiting_time: float
 
     def as_dict(self) -> dict:
         return self.__dict__.copy()

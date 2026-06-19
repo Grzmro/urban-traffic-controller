@@ -24,7 +24,7 @@ def test_spec_and_baseline(network, cfg):
 def test_apply_genome_sets_durations(network, cfg):
     """Genome durations must land on the controllable phases in SUMO."""
     spec = _spec(network, cfg)
-    genome = [spec.min_green] * spec.length  # distinct from baseline
+    genome = [spec.min_green] * spec.length
     conn.start(base_command(network["net"], network["routes"]))
     try:
         apply_genome(spec, genome)
@@ -48,6 +48,5 @@ def test_optimize_beats_baseline(network, cfg):
     spec = _spec(network, cfg)
     res = optimize(spec, network["net"], network["routes"],
                    cfg["simulation"], cfg["ga"])
-    # The GA keeps the best-so-far (elitism), so it can never end up worse.
     assert res.best_fitness <= res.baseline_fitness
     assert len(res.convergence) == cfg["ga"]["generations"] + 1
